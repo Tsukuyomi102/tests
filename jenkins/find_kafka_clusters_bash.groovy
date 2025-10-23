@@ -1,6 +1,6 @@
 // jenkins/find_kafka_clusters_bash.groovy
 def call() {
-    if (True){
+    if (2+2==4){
     String out = sh(
       script: '''#!/bin/bash
   set -euo pipefail
