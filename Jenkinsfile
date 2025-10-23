@@ -4,8 +4,8 @@ pipeline {
   environment {
     ENVIR = 'allConf'
     YQ_VERSION = 'v4.20.4'          // целевая версия
-    YQ_FALLBACK_VERSION = 'v4.20.2' // фолбэк, если 4.20.4 недоступна
-    PATH = "${WORKSPACE}/.tools:${PATH}"
+    YQ_FALLBACK_VERSION = 'v4.20.2' // фолбэк, если целевая недоступна
+    PATH = "${WORKSPACE}/.tools:${PATH}" // добавим локальную папку с бинарниками в PATH
   }
 
   stages {
@@ -22,7 +22,7 @@ mkdir -p .tools
 want_ver="${YQ_VERSION}"
 fallback_ver="${YQ_FALLBACK_VERSION}"
 
-# уже нужная версия?
+# Если уже стоит нужная версия — выходим
 if [ -x .tools/yq ] && .tools/yq --version 2>/dev/null | grep -q "version ${want_ver#v}"; then
   .tools/yq --version
   exit 0
@@ -43,27 +43,26 @@ esac
 download_yq() {
   local ver="$1"
   local url="https://github.com/mikefarah/yq/releases/download/${ver}/yq_${os}_${arch}"
-  echo "Trying yq ${ver} from: $url"
+  echo "Downloading yq ${ver} from: $url"
   local tmp=".tools/.yq.tmp"
   rm -f "$tmp"
   if command -v curl >/dev/null 2>&1; then
-    http=$(curl -s -o /dev/null -w "%{http_code}" "$url")
-    if [ "$http" != "200" ]; then
-      echo "HTTP $http for ${url}"
-      return 1
-    fi
-    curl -fsSL "$url" -o "$tmp"
+    # -f: fail on HTTP errors, -L: follow redirects (302 GitHub), лёгкие ретраи
+    curl -fL --retry 3 --retry-delay 1 --connect-timeout 10 "$url" -o "$tmp" || return 1
   else
-    wget -qO "$tmp" "$url" || return 1
+    wget -q --tries=3 --timeout=15 -O "$tmp" "$url" || return 1
   fi
   chmod +x "$tmp"
   mv -f "$tmp" .tools/yq
 }
 
-# пробуем целевую, если не получилось — фолбэк
+# пробуем целевую; если не скачалась — фолбэк
 if ! download_yq "$want_ver"; then
   echo "Falling back to ${fallback_ver}…"
-  download_yq "$fallback_ver"
+  if ! download_yq "$fallback_ver"; then
+    echo "Failed to download yq ${want_ver} and fallback ${fallback_ver}" >&2
+    exit 1
+  fi
 fi
 
 .tools/yq --version
