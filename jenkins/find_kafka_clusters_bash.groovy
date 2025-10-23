@@ -14,7 +14,7 @@ yq e -o=tsv '
 ''',
     returnStdout: true
   ).trim()
-
+  echo "out: ${out}"
   def kafka_clusters = out ? out.readLines() : []
   echo "Kafka clusters (yq): ${kafka_clusters}"
   return kafka_clusters
