@@ -3,7 +3,7 @@ pipeline {
   options { timestamps() }
   environment {
     ENVIR = 'allConf'
-    YQ_VERSION = 'v4.44.3'
+    YQ_VERSION = 'v4.20.2'
     // добавим локальную папку с бинарниками в PATH
     PATH = "${WORKSPACE}/.tools:${PATH}"
   }
