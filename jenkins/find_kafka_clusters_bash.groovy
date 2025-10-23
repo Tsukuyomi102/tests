@@ -15,7 +15,7 @@ def call() {
     ''',
         returnStdout: true
     ).trim()
-
+    echo "out: ${out}"
     def kafka_clusters = out.split('\n') as List
     kafka_clusters = kafka_clusters.unique()
     echo "Kafka clusters (yq): ${kafka_clusters}"
