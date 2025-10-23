@@ -3,8 +3,7 @@ pipeline {
   options { timestamps() }
   environment {
     ENVIR = 'allConf'
-    YQ_VERSION = 'v4.20.2'
-    // добавим локальную папку с бинарниками в PATH
+    YQ_VERSION = 'v4.20.4'   // <— пинаем 4.20.4
     PATH = "${WORKSPACE}/.tools:${PATH}"
   }
 
@@ -20,7 +19,14 @@ set -euo pipefail
 
 mkdir -p .tools
 
-if [ ! -x .tools/yq ]; then
+need_dl=1
+if [ -x .tools/yq ]; then
+  if .tools/yq --version 2>/dev/null | grep -q "version ${YQ_VERSION#v}"; then
+    need_dl=0
+  fi
+fi
+
+if [ "$need_dl" -eq 1 ]; then
   case "$(uname -s)" in
     Linux)  os=linux ;;
     Darwin) os=darwin ;;
@@ -28,23 +34,23 @@ if [ ! -x .tools/yq ]; then
   esac
 
   case "$(uname -m)" in
-    x86_64)           arch=amd64 ;;
-    aarch64|arm64)    arch=arm64 ;;
+    x86_64)        arch=amd64 ;;
+    aarch64|arm64) arch=arm64 ;;
     *) echo "Unsupported arch: $(uname -m)" >&2; exit 1 ;;
   esac
 
   url="https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_${os}_${arch}"
-
-  echo "Downloading yq from: $url"
+  echo "Downloading yq ${YQ_VERSION} from: $url"
+  tmp=".tools/.yq.tmp"
   if command -v curl >/dev/null 2>&1; then
-    curl -fsSL "$url" -o .tools/yq
+    curl -fsSL "$url" -o "$tmp"
   else
-    wget -qO .tools/yq "$url"
+    wget -qO "$tmp" "$url"
   fi
-  chmod +x .tools/yq
+  chmod +x "$tmp"
+  mv -f "$tmp" .tools/yq
 fi
 
-# показать версию для дебага
 .tools/yq --version
 '''
       }
