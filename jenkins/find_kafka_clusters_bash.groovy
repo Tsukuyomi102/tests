@@ -6,7 +6,7 @@ def call() {
     yq '
     ..
     | select(tag == "!!map")
-    | to_entries[]
+    | to_entries | .[]
     | select(.value | tag == "!!str")
     | select(.value | contains("kafka_fp"))
     | select(.value | test("\\\\.json$"))
