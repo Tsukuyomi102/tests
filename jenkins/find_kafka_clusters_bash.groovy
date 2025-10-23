@@ -4,6 +4,7 @@ def call() {
     String out = sh(
       script: '''#!/bin/bash
     set -euo pipefail
+
     yq e -o=tsv '
     ..
     | select(tag == "!!map")
