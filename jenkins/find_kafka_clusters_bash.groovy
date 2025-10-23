@@ -2,7 +2,7 @@
 def call() {
   def out = sh(
     script: '''#!/bin/bash
-yq '
+yq e '
 ..
 | select(tag == "!!map")
 | to_entries | .[]
