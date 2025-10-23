@@ -2,10 +2,10 @@
 def call() {
   String out = sh(
     script: '''#!/bin/bash
-yq e -o=tsv '
+yq '
 ..
 | select(tag == "!!map")
-| to_entries[]
+| to_entries | .[]
 | select(.value | tag == "!!str")
 | select(.value | contains("kafka_fp"))
 | select(.value | test("\\\\.json$"))
