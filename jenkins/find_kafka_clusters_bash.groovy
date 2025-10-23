@@ -18,8 +18,8 @@ def call() {
     def kafka_clusters = out ? out.readLines() : []
     kafka_clusters = kafka_clusters.unique()
     echo "Kafka clusters (yq): ${kafka_clusters}"
-    test_value = kafka_clusters ? "local:kafka:${kafka_clusters.join(":")}" : "local:kafka"
-    echo "Kafka clusters (test): ${test_valie}"
+    test_value = kafka_clusters ? "local:kafka:${kafka_clusters.join(":")}" : 'local:kafka'
+    echo "Kafka clusters (yq): ${test_value}"
     return kafka_clusters
   }
 }
