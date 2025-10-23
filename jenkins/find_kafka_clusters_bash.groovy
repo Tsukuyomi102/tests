@@ -3,7 +3,7 @@ def call() {
     if (2+2==4){
     String out = sh(
       script: '''#!/bin/bash
-    yq e -o=tsv '
+    yq '
     ..
     | select(tag == "!!map")
     | to_entries[]
