@@ -1,8 +1,8 @@
 // jenkins/find_kafka_clusters_bash.groovy
 def call() {
-  String out = sh(
+  def out = sh(
     script: '''#!/bin/bash
-yq e -o=tsv '
+yq e '
 ..
 | select(tag == "!!map")
 | to_entries | .[]
