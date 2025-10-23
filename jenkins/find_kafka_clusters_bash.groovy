@@ -4,12 +4,15 @@ def call() {
     script: '''#!/bin/bash
 set -euo pipefail
 
-yq -o=tsv e '
-  paths(.. | scalars
-    | select(type == "!!str" and contains("kafka_fp") and test("\\.json$"))
-  )
-  | .[-1]
-  | select(type == "!!str")
+yq e -o=tsv '
+  ..                                                     # пройти по всем нодам
+  | select(tag == "!!map")                               # оставить только мапы
+  | to_entries[]                                         # развернуть в пары {key, value}
+  | select( .value
+            | tag == "!!str"
+            and contains("kafka_fp")
+            and test("\\.json$") )                       # фильтр значения
+  | .key                                                 # вывести имя ключа
 ' conf/distrib.yml | sort -u
 ''',
     returnStdout: true
