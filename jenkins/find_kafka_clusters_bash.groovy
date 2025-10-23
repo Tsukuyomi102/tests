@@ -1,63 +1,53 @@
 def call() {
   final String DISTRIB_PATH = 'conf/distrib.yml'
 
-  // Валидируем YAML (если битый — упадёт тут)
+  // Валидация YAML (упадёт, если синтаксис битый)
   def _ = readYaml(file: DISTRIB_PATH)
 
-  // Берём сырой текст YAML
-  String yamlText = readFile(DISTRIB_PATH)
-
-  // Как просил — переменная остаётся в Groovy
-  def kafka_clusters = []
-
-  // ВЕСЬ парсинг — одной awk-командой; без grep, без нестабильных кодов возврата
-  def out = sh(
+  // Ищем кластеры через yq
+  String out = sh(
     script: '''#!/bin/bash
 set -euo pipefail
 
-awk '
-  /^[[:space:]]*#/ { next }
-  {
-    line = $0
-    c = index(line, ":")
-    if (c == 0) next
+DISTRIB_PATH="conf/distrib.yml"
 
-    key  = substr(line, 1, c-1)
-    rest = substr(line, c+1)
+# Найти yq или установить локально (mikefarah/yq v4)
+if command -v yq >/dev/null 2>&1; then
+  YQ_CMD="$(command -v yq)"
+else
+  mkdir -p .tools
+  YQ_CMD=".tools/yq"
+  if [ ! -x "$YQ_CMD" ]; then
+    arch="$(uname -m)"
+    case "$arch" in
+      x86_64)  suffix="amd64" ;;
+      aarch64|arm64) suffix="arm64" ;;
+      *) echo "Unsupported arch: $arch" >&2; exit 1 ;;
+    esac
+    url="https://github.com/mikefarah/yq/releases/download/v4.44.3/yq_linux_${suffix}"
+    if command -v curl >/dev/null 2>&1; then
+      curl -fsSL "$url" -o "$YQ_CMD"
+    else
+      wget -qO "$YQ_CMD" "$url"
+    fi
+    chmod +x "$YQ_CMD"
+  fi
+fi
 
-    # trim key/rest
-    gsub(/^[ \\t]+|[ \\t]+$/, "", key)
-    gsub(/^[ \\t]+|[ \\t]+$/, "", rest)
-
-    # ждём строго строку вида: key: "value"
-    if (rest ~ /^"[^"]*"$/) 
-    {
-      val = rest
-      sub(/^"/, "", val)
-      sub(/"$/, "", val)
-
-      # правило: содержит kafka_fp и заканчивается на .json (без регэкспов)
-      if (index(val, "kafka_fp") > 0 && substr(val, length(val)-4) == ".json") 
-      {
-        print key
-      }
-    }
-  }
-' <<'__YAML__' | sort -u
-''' + yamlText + '''
-__YAML__
+# Ищем ВСЕ строковые скаляры, где есть 'kafka_fp' и окончание '.json',
+# и печатаем ПОСЛЕДНИЙ элемент пути (имя ключа). Исключаем индексы массивов.
+"$YQ_CMD" -o=tsv e '
+  paths(.. | scalars | select(type == "!!str" and contains("kafka_fp") and test("\\.json$"))) |
+  .[-1] | select(type == "!!str")
+' "$DISTRIB_PATH" | sort -u
 ''',
     returnStdout: true
   ).trim()
 
-  if (out) {
-    kafka_clusters = out.readLines().findAll { it?.trim() }
-  }
+  def kafka_clusters = out ? out.readLines().findAll { it?.trim() } : []
+  kafka_clusters = kafka_clusters.unique()
 
-  // Оставляем финальную уникализацию и вывод
-  kafka_clusters = kafka_clusters.unique()
-  kafka_clusters = kafka_clusters.unique()
-  echo "Kafka clusters: ${kafka_clusters}"
+  echo "Kafka clusters (yq): ${kafka_clusters}"
   return kafka_clusters
 }
 return this
