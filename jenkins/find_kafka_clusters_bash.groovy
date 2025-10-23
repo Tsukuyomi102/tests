@@ -15,7 +15,7 @@ yq e '
     returnStdout: true
   ).trim()
   echo "out: ${out}"
-  def kafka_clusters = out ? out.readLines() : []
+  def kafka_clusters = out.split('\n') as List
   echo "Kafka clusters (yq): ${kafka_clusters}"
   return kafka_clusters
 }
