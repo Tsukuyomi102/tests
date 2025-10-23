@@ -3,7 +3,8 @@ pipeline {
   options { timestamps() }
   environment {
     ENVIR = 'allConf'
-    YQ_VERSION = 'v4.20.4'   // <— пинаем 4.20.4
+    YQ_VERSION = 'v4.20.4'          // целевая версия
+    YQ_FALLBACK_VERSION = 'v4.20.2' // фолбэк, если 4.20.4 недоступна
     PATH = "${WORKSPACE}/.tools:${PATH}"
   }
 
@@ -16,39 +17,53 @@ pipeline {
       steps {
         sh '''#!/bin/bash
 set -euo pipefail
-
 mkdir -p .tools
 
-need_dl=1
-if [ -x .tools/yq ]; then
-  if .tools/yq --version 2>/dev/null | grep -q "version ${YQ_VERSION#v}"; then
-    need_dl=0
-  fi
+want_ver="${YQ_VERSION}"
+fallback_ver="${YQ_FALLBACK_VERSION}"
+
+# уже нужная версия?
+if [ -x .tools/yq ] && .tools/yq --version 2>/dev/null | grep -q "version ${want_ver#v}"; then
+  .tools/yq --version
+  exit 0
 fi
 
-if [ "$need_dl" -eq 1 ]; then
-  case "$(uname -s)" in
-    Linux)  os=linux ;;
-    Darwin) os=darwin ;;
-    *) echo "Unsupported OS: $(uname -s)" >&2; exit 1 ;;
-  esac
+case "$(uname -s)" in
+  Linux)  os=linux ;;
+  Darwin) os=darwin ;;
+  *) echo "Unsupported OS: $(uname -s)" >&2; exit 1 ;;
+esac
 
-  case "$(uname -m)" in
-    x86_64)        arch=amd64 ;;
-    aarch64|arm64) arch=arm64 ;;
-    *) echo "Unsupported arch: $(uname -m)" >&2; exit 1 ;;
-  esac
+case "$(uname -m)" in
+  x86_64)        arch=amd64 ;;
+  aarch64|arm64) arch=arm64 ;;
+  *) echo "Unsupported arch: $(uname -m)" >&2; exit 1 ;;
+esac
 
-  url="https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_${os}_${arch}"
-  echo "Downloading yq ${YQ_VERSION} from: $url"
-  tmp=".tools/.yq.tmp"
+download_yq() {
+  local ver="$1"
+  local url="https://github.com/mikefarah/yq/releases/download/${ver}/yq_${os}_${arch}"
+  echo "Trying yq ${ver} from: $url"
+  local tmp=".tools/.yq.tmp"
+  rm -f "$tmp"
   if command -v curl >/dev/null 2>&1; then
+    http=$(curl -s -o /dev/null -w "%{http_code}" "$url")
+    if [ "$http" != "200" ]; then
+      echo "HTTP $http for ${url}"
+      return 1
+    fi
     curl -fsSL "$url" -o "$tmp"
   else
-    wget -qO "$tmp" "$url"
+    wget -qO "$tmp" "$url" || return 1
   fi
   chmod +x "$tmp"
   mv -f "$tmp" .tools/yq
+}
+
+# пробуем целевую, если не получилось — фолбэк
+if ! download_yq "$want_ver"; then
+  echo "Falling back to ${fallback_ver}…"
+  download_yq "$fallback_ver"
 fi
 
 .tools/yq --version
@@ -117,6 +132,7 @@ fifth_added_cluster:
 
   post {
     always {
+      // чтобы сразу видеть результат в артефактах
       archiveArtifacts artifacts: 'conf/**, inventory/**', allowEmptyArchive: true
     }
   }
