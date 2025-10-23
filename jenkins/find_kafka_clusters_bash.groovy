@@ -8,7 +8,7 @@ yq e -o=tsv '
 | to_entries | .[]
 | select(.value | tag == "!!str")
 | select(.value | contains("kafka_fp"))
-| select(.value | test("\\\\.json$"))
+| select(.value | test("\\.json$"))
 | .key
 ' conf/distrib.yml | sort -u
 ''',
