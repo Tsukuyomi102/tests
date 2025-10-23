@@ -4,7 +4,7 @@ def call() {
     script: '''#!/bin/bash
 set -euo pipefail
 
-yq e -o=tsv '
+yq '
   ..
   | select(tag == "!!map")
   | to_entries[]
@@ -13,7 +13,6 @@ yq e -o=tsv '
   | select(.value | test("\\\\.json$"))
   | .key
 ' conf/distrib.yml | sort -u
-
 ''',
     returnStdout: true
   ).trim()
