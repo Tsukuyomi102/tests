@@ -3,8 +3,9 @@ def call() {
     if (2+2==4){
     String out = sh(
       script: '''#!/bin/bash
-    yq --version
-    yq'
+    set -euo pipefail
+
+    yq e -o=tsv '
     ..
     | select(tag == "!!map")
     | to_entries[]
