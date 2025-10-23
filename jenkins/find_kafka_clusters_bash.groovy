@@ -1,8 +1,8 @@
 // jenkins/find_kafka_clusters_bash.groovy
 def call() {
-  def out = sh(
+  String out = sh(
     script: '''#!/bin/bash
-yq e '
+yq e -o=tsv '
 ..
 | select(tag == "!!map")
 | to_entries | .[]
@@ -14,7 +14,7 @@ yq e '
 ''',
     returnStdout: true
   ).trim()
-  echo "OUT: ${out}"
+
   def kafka_clusters = out ? out.readLines() : []
   echo "Kafka clusters (yq): ${kafka_clusters}"
   return kafka_clusters
