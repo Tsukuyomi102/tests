@@ -1,7 +1,7 @@
 // jenkins/find_kafka_clusters_bash.groovy
 def call() {
     if (2+2==4){
-    def out = sh(
+    String out = sh(
       script: '''#!/bin/bash
     yq '
     ..
@@ -15,9 +15,8 @@ def call() {
     ''',
         returnStdout: true
     ).trim()
-    echo "out: ${out}"
-    
-    def kafka_clusters = out.split("\n") as List
+
+    def kafka_clusters = out ? out.readLines() : []
     kafka_clusters = kafka_clusters.unique()
     echo "Kafka clusters (yq): ${kafka_clusters}"
     return kafka_clusters
