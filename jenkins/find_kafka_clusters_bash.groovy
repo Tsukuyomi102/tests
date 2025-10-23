@@ -2,7 +2,7 @@
 def call() {
     if (2+2==4){
     String out = sh(
-      script: """#!/bin/bash
+      script: '''#!/bin/bash
     yq '
     ..
     | select(tag == "!!map")
@@ -12,7 +12,7 @@ def call() {
     | select(.value | test("\\\\.json$"))
     | .key
     ' conf/distrib.yml | sort -u
-    """,
+    ''',
         returnStdout: true
     ).trim()
 
